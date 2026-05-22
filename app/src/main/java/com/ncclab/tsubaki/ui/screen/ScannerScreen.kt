@@ -8,9 +8,12 @@ import android.graphics.ImageDecoder
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
+import android.util.Size as AndroidSize
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.Preview
+import androidx.camera.core.resolutionselector.ResolutionSelector
+import androidx.camera.core.resolutionselector.ResolutionStrategy
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.animation.core.RepeatMode
@@ -60,6 +63,7 @@ import com.google.accompanist.permissions.rememberPermissionState
 import com.ncclab.tsubaki.data.model.EngineType
 import com.ncclab.tsubaki.ui.viewmodel.ScannerViewModel
 import kotlinx.coroutines.launch
+import java.util.concurrent.Executors
 
 @OptIn(ExperimentalPermissionsApi::class)
 @Composable
@@ -124,9 +128,16 @@ fun ScannerScreen(
         val cameraProviderFuture = remember { ProcessCameraProvider.getInstance(context) }
         val scanResult by viewModel.scanResult.collectAsState()
         val cameraPermissionState = rememberPermissionState(permission = Manifest.permission.CAMERA)
+        val analyzerExecutor = remember { Executors.newSingleThreadExecutor() }
 
-        LaunchedEffect(Unit) {
-            cameraPermissionState.launchPermissionRequest()
+        DisposableEffect(Unit) {
+            onDispose { analyzerExecutor.shutdown() }
+        }
+
+        LaunchedEffect(cameraPermissionState.status.isGranted) {
+            if (!cameraPermissionState.status.isGranted) {
+                cameraPermissionState.launchPermissionRequest()
+            }
         }
 
         Box(modifier = Modifier.fillMaxSize()) {
@@ -134,7 +145,7 @@ fun ScannerScreen(
                 AndroidView(
                     factory = { ctx ->
                         val previewView = PreviewView(ctx)
-                        val executor = ContextCompat.getMainExecutor(ctx)
+                        val mainExecutor = ContextCompat.getMainExecutor(ctx)
                         cameraProviderFuture.addListener({
                             val cameraProvider = cameraProviderFuture.get()
                             val preview = Preview.Builder().build().also {
@@ -142,9 +153,19 @@ fun ScannerScreen(
                             }
                             val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
                             val imageAnalysis = ImageAnalysis.Builder()
+                                .setResolutionSelector(
+                                    ResolutionSelector.Builder()
+                                        .setResolutionStrategy(
+                                            ResolutionStrategy(
+                                                AndroidSize(1280, 720),
+                                                ResolutionStrategy.FALLBACK_RULE_CLOSEST_LOWER_THEN_HIGHER
+                                            )
+                                        )
+                                        .build()
+                                )
                                 .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                                 .build()
-                                .also { it.setAnalyzer(executor, viewModel.analyzer) }
+                                .also { it.setAnalyzer(analyzerExecutor, viewModel.analyzer) }
 
                             cameraProvider.unbindAll()
                             cameraProvider.bindToLifecycle(
@@ -153,7 +174,7 @@ fun ScannerScreen(
                                 preview,
                                 imageAnalysis
                             )
-                        }, executor)
+                        }, mainExecutor)
                         previewView
                     },
                     modifier = Modifier.fillMaxSize()

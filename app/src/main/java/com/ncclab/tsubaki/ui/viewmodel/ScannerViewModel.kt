@@ -47,6 +47,7 @@ class ScannerViewModel @Inject constructor(
 
     fun clearResult() {
         _scanResult.value = null
+        repository.acknowledgeResult()
     }
 
     fun scanFromBitmap(bitmap: Bitmap) {

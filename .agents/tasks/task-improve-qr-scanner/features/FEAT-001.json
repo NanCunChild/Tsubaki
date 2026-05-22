@@ -1,0 +1,25 @@
+{
+  "id": "FEAT-001",
+  "type": "chore",
+  "description": "Verify the baseline build is green before any code changes. Confirm Gradle wrapper, JDK 17, Android SDK 36 path, and that `./gradlew assembleDebug` and `./gradlew testDebugUnitTest` both pass on the unmodified sources. This locks in our reference point so later regressions are obvious.",
+  "status": "completed",
+  "steps": [
+    "Make sure `./gradlew` is executable: `chmod +x ./gradlew` from the repo root.",
+    "Export JAVA_HOME=/opt/toolchains/.local/share/mise/installs/java/17.0.2, ANDROID_HOME=/root/Android/Sdk, and prepend $JAVA_HOME/bin to PATH for every Gradle invocation.",
+    "Run `./gradlew --version` and confirm it reports Gradle 8.11.1 with JVM 17.",
+    "Run `./gradlew assembleDebug` and confirm BUILD SUCCESSFUL. Note: there is a harmless warning 'Kapt currently doesn't support language version 2.0+. Falling back to 1.9.' — leave it alone.",
+    "Run `./gradlew testDebugUnitTest` and confirm BUILD SUCCESSFUL even though no JVM unit tests exist yet (Gradle will report `0 tests executed`).",
+    "Record the verified commands and final APK path (app/build/outputs/apk/debug/app-debug.apk) in the feature `findings` field."
+  ],
+  "acceptance_criteria": [
+    "`./gradlew assembleDebug` exits 0 and produces app/build/outputs/apk/debug/app-debug.apk.",
+    "`./gradlew testDebugUnitTest` exits 0.",
+    "No source files have been modified by this feature."
+  ],
+  "verification": [
+    "JAVA_HOME=/opt/toolchains/.local/share/mise/installs/java/17.0.2 ANDROID_HOME=/root/Android/Sdk PATH=$JAVA_HOME/bin:$PATH ./gradlew assembleDebug",
+    "JAVA_HOME=/opt/toolchains/.local/share/mise/installs/java/17.0.2 ANDROID_HOME=/root/Android/Sdk PATH=$JAVA_HOME/bin:$PATH ./gradlew testDebugUnitTest"
+  ],
+  "blocked_reason": null,
+  "findings": "Baseline build verified green on unmodified sources. Steps run from /projects/sandbox/Tsubaki with env JAVA_HOME=/opt/toolchains/.local/share/mise/installs/java/17.0.2, ANDROID_HOME=/root/Android/Sdk, PATH=$JAVA_HOME/bin:$PATH. (1) chmod +x ./gradlew was applied (only filesystem change; no source files touched, confirmed via git status). (2) ./gradlew --version reports Gradle 8.11.1, Launcher JVM 17.0.2 (Oracle 17.0.2+8-86), Kotlin 2.0.20, on Linux x86_64. (3) ./gradlew assembleDebug -> BUILD SUCCESSFUL in 10s, 40 actionable tasks (all up-to-date on warm cache). APK produced at app/build/outputs/apk/debug/app-debug.apk (~41 MB, alongside output-metadata.json). (4) ./gradlew testDebugUnitTest -> BUILD SUCCESSFUL in 20s, 32 actionable tasks (10 executed, 22 up-to-date); the expected harmless warning 'Kapt currently doesn't support language version 2.0+. Falling back to 1.9.' appeared during kaptGenerateStubsDebugUnitTestKotlin and was ignored; testDebugUnitTest reported zero tests as anticipated (no JVM unit tests exist under app/src/test/ yet). No sources were modified by this feature. Acceptance criteria all met; this is the locked reference point for FEAT-002 / FEAT-003."
+}

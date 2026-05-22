@@ -10,4 +10,5 @@ interface ScanningRepository {
     val analyzer: ImageAnalysis.Analyzer
     fun scanFromBitmap(bitmap: Bitmap)
     fun resetScanner()
+    fun acknowledgeResult()
 }
